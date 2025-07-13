@@ -1,14 +1,27 @@
 {
   "name": "pixel-animation-editor",
   "version": "1.0.0",
-  "description": "",
-  "main": "dist/index.js",
+  "description": "Éditeur d'animations pixel art moderne",
+  "type": "module",
   "scripts": {
-    "build": "tsc"
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage"
   },
-  "dependencies": {},
+  "dependencies": {
+    "fabric": "^5.5.2",
+    "tone": "^14.9.17"
+  },
   "devDependencies": {
-    "typescript": "^5.5.3"
+    "@types/fabric": "^5.3.10",
+    "@vitest/ui": "^1.6.1",
+    "jsdom": "^23.2.0",
+    "typescript": "^5.5.3",
+    "vite": "^5.4.19",
+    "vitest": "^1.6.1"
   },
   "private": true
 }
