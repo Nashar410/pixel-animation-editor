@@ -1,13 +1,951 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + TS</title>
-  </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
-  </body>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pixel Animation Editor</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg-primary: #1e1e1e;
+      --bg-secondary: #252526;
+      --bg-tertiary: #2d2d30;
+      --bg-hover: #3e3e42;
+      --border-color: #464647;
+      --text-primary: #cccccc;
+      --text-secondary: #999999;
+      --accent: #007acc;
+      --accent-hover: #1a8ad4;
+      --success: #4ec9b0;
+      --warning: #dcdcaa;
+      --error: #f44747;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* Layout principal */
+    .app-container {
+      display: grid;
+      grid-template-rows: 48px 1fr 200px;
+      grid-template-columns: 250px 1fr 300px;
+      height: 100vh;
+      gap: 1px;
+      background-color: var(--border-color);
+    }
+
+    /* Header / Barre d'outils */
+    .toolbar {
+      grid-column: 1 / -1;
+      background-color: var(--bg-secondary);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .toolbar-group {
+      display: flex;
+      gap: 4px;
+      padding: 0 8px;
+      border-right: 1px solid var(--border-color);
+    }
+
+    .toolbar-group:last-child {
+      border-right: none;
+      margin-left: auto;
+    }
+
+    .toolbar-btn {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background-color: transparent;
+      color: var(--text-primary);
+      cursor: pointer;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .toolbar-btn:hover {
+      background-color: var(--bg-hover);
+    }
+
+    .toolbar-btn.active {
+      background-color: var(--accent);
+      color: white;
+    }
+
+    /* Panneau gauche - Hiérarchie */
+    .left-panel {
+      background-color: var(--bg-secondary);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-header {
+      height: 35px;
+      background-color: var(--bg-tertiary);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .hierarchy-tree {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .tree-item {
+      display: flex;
+      align-items: center;
+      height: 28px;
+      padding: 0 8px;
+      cursor: pointer;
+      border-radius: 4px;
+      margin-bottom: 2px;
+      font-size: 13px;
+    }
+
+    .tree-item:hover {
+      background-color: var(--bg-hover);
+    }
+
+    .tree-item.selected {
+      background-color: var(--accent);
+      color: white;
+    }
+
+    .tree-item-icon {
+      width: 16px;
+      height: 16px;
+      margin-right: 6px;
+      opacity: 0.8;
+    }
+
+    /* Zone centrale - Viewport */
+    .viewport-container {
+      background-color: var(--bg-primary);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .viewport-header {
+      height: 30px;
+      background-color: var(--bg-tertiary);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 12px;
+    }
+
+    .viewport {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background-image:
+              repeating-linear-gradient(0deg, transparent, transparent 15px, #2a2a2a 15px, #2a2a2a 16px),
+              repeating-linear-gradient(90deg, transparent, transparent 15px, #2a2a2a 15px, #2a2a2a 16px);
+    }
+
+    #canvas {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: white;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      image-rendering: pixelated;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: crisp-edges;
+    }
+
+    .viewport-info {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      background-color: rgba(0, 0, 0, 0.7);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: monospace;
+    }
+
+    /* Panneau droit - Propriétés */
+    .right-panel {
+      background-color: var(--bg-secondary);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .properties-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+
+    .property-group {
+      margin-bottom: 16px;
+    }
+
+    .property-group-header {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .property-row {
+      display: grid;
+      grid-template-columns: 100px 1fr;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .property-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .property-input {
+      width: 100%;
+      padding: 4px 8px;
+      background-color: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      color: var(--text-primary);
+      font-size: 12px;
+    }
+
+    .property-input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    /* Timeline */
+    .timeline-container {
+      grid-column: 1 / -1;
+      background-color: var(--bg-secondary);
+      display: flex;
+      flex-direction: column;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .timeline-header {
+      height: 35px;
+      background-color: var(--bg-tertiary);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 12px;
+    }
+
+    .timeline-controls {
+      display: flex;
+      gap: 4px;
+    }
+
+    .timeline-time {
+      margin-left: auto;
+      font-family: monospace;
+      font-size: 12px;
+    }
+
+    .timeline-tracks {
+      flex: 1;
+      overflow: auto;
+      position: relative;
+    }
+
+    .timeline-ruler {
+      height: 25px;
+      background-color: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .timeline-track {
+      height: 30px;
+      background-color: var(--bg-primary);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+    }
+
+    .timeline-track:nth-child(even) {
+      background-color: rgba(255, 255, 255, 0.02);
+    }
+
+    .track-label {
+      width: 150px;
+      font-size: 12px;
+      padding-right: 12px;
+      border-right: 1px solid var(--border-color);
+    }
+
+    .track-content {
+      flex: 1;
+      height: 100%;
+      position: relative;
+      margin-left: 12px;
+    }
+
+    .keyframe {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background-color: var(--accent);
+      border-radius: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+    }
+
+    .keyframe:hover {
+      transform: translate(-50%, -50%) scale(1.5);
+    }
+
+    /* Playhead */
+    .playhead {
+      position: absolute;
+      width: 1px;
+      height: 100%;
+      background-color: var(--error);
+      pointer-events: none;
+      z-index: 20;
+    }
+
+    /* Modal/Dialog de base */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.7);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background-color: var(--bg-secondary);
+      border-radius: 8px;
+      padding: 24px;
+      min-width: 400px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Scrollbar personnalisée */
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg-primary);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--bg-hover);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--border-color);
+    }
+
+    /* Icônes SVG inline */
+    .icon {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+  </style>
+</head>
+<body>
+
+<div id="app"></div>
+<script type="module" src="/src/main.ts"></script
+<div class="app-container">
+  <!-- Barre d'outils -->
+  <div class="toolbar">
+    <div class="toolbar-group">
+      <button class="toolbar-btn" title="Nouveau projet">
+        <svg class="icon" viewBox="0 0 16 16">
+          <path d="M12 3H8v1h4v8H4V4h4V3H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1z"/>
+          <path d="M8 2v5h1V2H8z"/>
+          <path d="M6 4h5v1H6V4z"/>
+        </svg>
+      </button>
+      <button class="toolbar-btn" title="Ouvrir">
+        <svg class="icon" viewBox="0 0 16 16">
+          <path d="M3 2a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V5.414a1 1 0 0 0-.293-.707l-2.414-2.414A1 1 0 0 0 10.586 2H3zm1 1h6v2a1 1 0 0 0 1 1h2v7H4V3zm7 .414L12.586 5H11V3.414z"/>
+        </svg>
+      </button>
+      <button class="toolbar-btn" title="Enregistrer">
+        <svg class="icon" viewBox="0 0 16 16">
+          <path d="M3 2a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V5.414a1 1 0 0 0-.293-.707l-2.414-2.414A1 1 0 0 0 10.586 2H3zm8 1v2H5V3h6zm-7 9V8h8v4H4z"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="toolbar-group">
+      <button class="toolbar-btn active" title="Sélection">
+        <svg class="icon" viewBox="0 0 16 16">
+          <path d="M1 1v7h2V3h5V1H1zm12 0v2h-2v2h2v5h2V1h-2zM1 12v3h7v-2H3v-3H1zm12 0v3h-5v2h7v-7h-2v2z"/>
+        </svg>
+      </button>
+      <button class="toolbar-btn" title="Déplacement">
+        <svg class="icon" viewBox="0 0 16 16">
+          <path d="M8 1L5 4h2v3H4V5L1 8l3 3v-2h3v3H5l3 3 3-3h-2V9h3v2l3-3-3-3v2H9V4h2L8 1z"/>
+        </svg>
+      </button>
+      <button class="toolbar-btn" title="Rotation">
+        <svg class="icon" viewBox="0 0 16 16">
+          <path d="M8 3a5 5 0 1 0 4.546 7.019l-.883-.416a4 4 0 1 1-.696-5.57L9 4v4h4l-2.5-2.5A5 5 0 0 0 8 3z"/>
+        </svg>
+      </button>
+      <button class="toolbar-btn" title="Échelle">
+        <svg class="icon" viewBox="0 0 16 16">
+          <path d="M1 1v5h1V2h4V1H1zm8 0v1h4v4h1V1H9zM1 9v5h5v-1H2V9H1zm13 0v4h-4v1h5V9h-1z"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="toolbar-group">
+      <button class="toolbar-btn" title="Ajouter un sprite">
+        <svg class="icon" viewBox="0 0 16 16">
+          <path d="M8 2a1 1 0 0 1 1 1v4h4a1 1 0 0 1 0 2H9v4a1 1 0 0 1-2 0V9H3a1 1 0 0 1 0-2h4V3a1 1 0 0 1 1-1z"/>
+        </svg>
+      </button>
+      <button class="toolbar-btn" title="Ajouter un calque">
+        <svg class="icon" viewBox="0 0 16 16">
+          <path d="M2 3h12v2H2V3zm0 4h12v2H2V7zm0 4h12v2H2v-2z"/>
+        </svg>
+      </button>
+      <button class="toolbar-btn" title="Ajouter une caméra">
+        <svg class="icon" viewBox="0 0 16 16">
+          <path d="M2 4a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1l3 2V4l-3 2V5a1 1 0 0 0-1-1H2z"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="toolbar-group">
+      <span style="font-size: 12px; color: var(--text-secondary);">Zoom: 100%</span>
+      <button class="toolbar-btn" title="Réinitialiser la vue">
+        <svg class="icon" viewBox="0 0 16 16">
+          <path d="M8 3a5 5 0 1 0 0 10A5 5 0 0 0 8 3zm0 1a4 4 0 1 1 0 8 4 4 0 0 1 0-8zm0 1a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm0 1a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Panneau gauche - Hiérarchie -->
+  <div class="left-panel">
+    <div class="panel-header">Hiérarchie</div>
+    <div class="hierarchy-tree">
+      <div class="tree-item selected">
+        <svg class="tree-item-icon icon" viewBox="0 0 16 16">
+          <path d="M2 2h12v12H2V2zm1 1v10h10V3H3z"/>
+        </svg>
+        Scène principale
+      </div>
+      <div class="tree-item" style="padding-left: 24px;">
+        <svg class="tree-item-icon icon" viewBox="0 0 16 16">
+          <path d="M8 1L2 5v6l6 4 6-4V5L8 1zM3 6.5L8 3l5 3.5V10l-5 3.5L3 10V6.5z"/>
+        </svg>
+        Background
+      </div>
+      <div class="tree-item" style="padding-left: 24px;">
+        <svg class="tree-item-icon icon" viewBox="0 0 16 16">
+          <path d="M2 3h12v2H2V3zm0 4h12v2H2V7zm0 4h12v2H2v-2z"/>
+        </svg>
+        Calque 1
+      </div>
+      <div class="tree-item" style="padding-left: 48px;">
+        <svg class="tree-item-icon icon" viewBox="0 0 16 16">
+          <path d="M4 4h8v8H4V4zm1 1v6h6V5H5z"/>
+        </svg>
+        Sprite_Marcel
+      </div>
+      <div class="tree-item" style="padding-left: 24px;">
+        <svg class="tree-item-icon icon" viewBox="0 0 16 16">
+          <path d="M2 4a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1l3 2V4l-3 2V5a1 1 0 0 0-1-1H2z"/>
+        </svg>
+        Caméra principale
+      </div>
+    </div>
+  </div>
+
+  <!-- Zone centrale - Viewport -->
+  <div class="viewport-container">
+    <div class="viewport-header">
+      <span style="font-size: 12px;">Viewport - Scène principale</span>
+      <button class="toolbar-btn" title="Grille">
+        <svg class="icon" viewBox="0 0 16 16">
+          <path d="M1 1v14h14V1H1zm5 1v4H2V2h4zm1 0h4v4H7V2zm5 0h3v4h-3V2zM2 7h4v4H2V7zm5 0h4v4H7V7zm5 0h3v4h-3V7zM2 12h4v3H2v-3zm5 0h4v3H7v-3zm5 0h3v3h-3v-3z"/>
+        </svg>
+      </button>
+      <button class="toolbar-btn" title="Prévisualisation">
+        <svg class="icon" viewBox="0 0 16 16">
+          <path d="M8 3a5 5 0 1 0 0 10A5 5 0 0 0 8 3zm-2 7V6l4 2-4 2z"/>
+        </svg>
+      </button>
+    </div>
+    <div class="viewport">
+      <canvas id="canvas" width="800" height="450"></canvas>
+      <div class="viewport-info">
+        800x450 | 60 FPS | Caméra: 0, 0
+      </div>
+    </div>
+  </div>
+
+  <!-- Panneau droit - Propriétés -->
+  <div class="right-panel">
+    <div class="panel-header">Propriétés</div>
+    <div class="properties-content">
+      <div class="property-group">
+        <div class="property-group-header">
+          <svg class="icon" viewBox="0 0 16 16">
+            <path d="M8 2L5 5v3L2 11v3h3l3-3h3l3 3h3v-3l-3-3V5l-3-3H8zm0 2h2l2 2v2l-2 2H8L6 8V6l2-2z"/>
+          </svg>
+          Transform
+        </div>
+        <div class="property-row">
+          <label class="property-label">Position X</label>
+          <input type="number" class="property-input" value="0">
+        </div>
+        <div class="property-row">
+          <label class="property-label">Position Y</label>
+          <input type="number" class="property-input" value="0">
+        </div>
+        <div class="property-row">
+          <label class="property-label">Rotation</label>
+          <input type="number" class="property-input" value="0">
+        </div>
+        <div class="property-row">
+          <label class="property-label">Échelle X</label>
+          <input type="number" class="property-input" value="1" step="0.1">
+        </div>
+        <div class="property-row">
+          <label class="property-label">Échelle Y</label>
+          <input type="number" class="property-input" value="1" step="0.1">
+        </div>
+      </div>
+
+      <div class="property-group">
+        <div class="property-group-header">
+          <svg class="icon" viewBox="0 0 16 16">
+            <path d="M8 3a5 5 0 1 0 0 10A5 5 0 0 0 8 3zm0 1a4 4 0 1 1 0 8 4 4 0 0 1 0-8z"/>
+          </svg>
+          Apparence
+        </div>
+        <div class="property-row">
+          <label class="property-label">Opacité</label>
+          <input type="range" class="property-input" min="0" max="100" value="100">
+        </div>
+        <div class="property-row">
+          <label class="property-label">Visible</label>
+          <input type="checkbox" checked>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Timeline -->
+  <div class="timeline-container">
+    <div class="timeline-header">
+      <div class="timeline-controls">
+        <button class="toolbar-btn" title="Début">
+          <svg class="icon" viewBox="0 0 16 16">
+            <path d="M3 3v10h2V3H3zm3 5l7-5v10L6 8z"/>
+          </svg>
+        </button>
+        <button class="toolbar-btn" title="Lecture">
+          <svg class="icon" viewBox="0 0 16 16">
+            <path d="M5 3v10l8-5-8-5z"/>
+          </svg>
+        </button>
+        <button class="toolbar-btn" title="Pause">
+          <svg class="icon" viewBox="0 0 16 16">
+            <path d="M5 3h2v10H5V3zm4 0h2v10H9V3z"/>
+          </svg>
+        </button>
+        <button class="toolbar-btn" title="Fin">
+          <svg class="icon" viewBox="0 0 16 16">
+            <path d="M11 3v10h2V3h-2zm-1 5L3 3v10l7-5z"/>
+          </svg>
+        </button>
+      </div>
+      <span class="timeline-time">00:00:00 / 00:10:00</span>
+    </div>
+    <div class="timeline-tracks">
+      <div class="timeline-ruler"></div>
+      <div class="playhead" style="left: 20%;"></div>
+      <div class="timeline-track">
+        <div class="track-label">Scène</div>
+        <div class="track-content"></div>
+      </div>
+      <div class="timeline-track">
+        <div class="track-label">Caméra</div>
+        <div class="track-content">
+          <div class="keyframe" style="left: 10%;"></div>
+          <div class="keyframe" style="left: 50%;"></div>
+          <div class="keyframe" style="left: 80%;"></div>
+        </div>
+      </div>
+      <div class="timeline-track">
+        <div class="track-label">Sprite_Marcel</div>
+        <div class="track-content">
+          <div class="keyframe" style="left: 5%;"></div>
+          <div class="keyframe" style="left: 25%;"></div>
+          <div class="keyframe" style="left: 60%;"></div>
+        </div>
+      </div>
+      <div class="timeline-track">
+        <div class="track-label">Audio - Musique</div>
+        <div class="track-content"></div>
+      </div>
+      <div class="timeline-track">
+        <div class="track-label">Dialogues</div>
+        <div class="track-content"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Initialisation basique pour démonstration
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+
+  // Désactiver l'antialiasing pour le pixel art
+  ctx.imageSmoothingEnabled = false;
+  ctx.webkitImageSmoothingEnabled = false;
+  ctx.mozImageSmoothingEnabled = false;
+  ctx.msImageSmoothingEnabled = false;
+
+  // Dessiner un placeholder
+  ctx.fillStyle = '#f0f0f0';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#666';
+  ctx.font = '24px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('Zone de prévisualisation', canvas.width / 2, canvas.height / 2);
+
+  // Gestion basique des interactions
+  document.querySelectorAll('.tree-item').forEach(item => {
+    item.addEventListener('click', function() {
+      document.querySelectorAll('.tree-item').forEach(i => i.classList.remove('selected'));
+      this.classList.add('selected');
+    });
+  });
+
+  document.querySelectorAll('.toolbar-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      if (this.parentElement.classList.contains('toolbar-group')) {
+        const group = this.parentElement;
+        if (group.children[0] === this || group.children[1] === this ||
+                group.children[2] === this || group.children[3] === this) {
+          group.querySelectorAll('.toolbar-btn').forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+        }
+      }
+    });
+  });
+
+  // Zoom avec molette
+  let zoom = 1;
+  canvas.addEventListener('wheel', function(e) {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    zoom = Math.max(0.1, Math.min(10, zoom * delta));
+    this.style.transform = `translate(-50%, -50%) scale(${zoom})`;
+    document.querySelector('.toolbar-group:last-child span').textContent = `Zoom: ${Math.round(zoom * 100)}%`;
+  });
+
+  // Pan avec clic du milieu
+  let isPanning = false;
+  let panStart = { x: 0, y: 0 };
+  let canvasPos = { x: 0, y: 0 };
+
+  canvas.addEventListener('mousedown', function(e) {
+    if (e.button === 1) { // Bouton du milieu
+      isPanning = true;
+      panStart = { x: e.clientX - canvasPos.x, y: e.clientY - canvasPos.y };
+      e.preventDefault();
+    }
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (isPanning) {
+      canvasPos.x = e.clientX - panStart.x;
+      canvasPos.y = e.clientY - panStart.y;
+      canvas.style.left = `calc(50% + ${canvasPos.x}px)`;
+      canvas.style.top = `calc(50% + ${canvasPos.y}px)`;
+    }
+  });
+
+  document.addEventListener('mouseup', function(e) {
+    if (e.button === 1) {
+      isPanning = false;
+    }
+  });
+
+  // Gestion de la timeline
+  let isPlaying = false;
+  let currentTime = 0;
+  let duration = 600; // 10 minutes en secondes
+
+  const playBtn = document.querySelector('.timeline-controls .toolbar-btn:nth-child(2)');
+  const pauseBtn = document.querySelector('.timeline-controls .toolbar-btn:nth-child(3)');
+  const playhead = document.querySelector('.playhead');
+  const timeDisplay = document.querySelector('.timeline-time');
+
+  function updateTimeDisplay() {
+    const formatTime = (seconds) => {
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = Math.floor(seconds % 60);
+      return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    };
+    timeDisplay.textContent = `${formatTime(currentTime)} / ${formatTime(duration)}`;
+    playhead.style.left = `${(currentTime / duration) * 100}%`;
+  }
+
+  playBtn.addEventListener('click', function() {
+    isPlaying = true;
+    animate();
+  });
+
+  pauseBtn.addEventListener('click', function() {
+    isPlaying = false;
+  });
+
+  function animate() {
+    if (isPlaying) {
+      currentTime += 1/60; // 60 FPS
+      if (currentTime > duration) currentTime = 0;
+      updateTimeDisplay();
+      requestAnimationFrame(animate);
+    }
+  }
+
+  // Drag & Drop pour les keyframes
+  document.querySelectorAll('.keyframe').forEach(keyframe => {
+    let isDragging = false;
+    let startX = 0;
+
+    keyframe.addEventListener('mousedown', function(e) {
+      isDragging = true;
+      startX = e.clientX;
+      this.style.cursor = 'grabbing';
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', function(e) {
+      if (isDragging && keyframe) {
+        const track = keyframe.parentElement;
+        const rect = track.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const percent = Math.max(0, Math.min(100, (x / rect.width) * 100));
+        keyframe.style.left = `${percent}%`;
+      }
+    });
+
+    document.addEventListener('mouseup', function() {
+      if (isDragging) {
+        isDragging = false;
+        keyframe.style.cursor = 'pointer';
+      }
+    });
+  });
+
+  // Double-clic pour ajouter des keyframes
+  document.querySelectorAll('.track-content').forEach(track => {
+    track.addEventListener('dblclick', function(e) {
+      const rect = this.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const percent = (x / rect.width) * 100;
+
+      const keyframe = document.createElement('div');
+      keyframe.className = 'keyframe';
+      keyframe.style.left = `${percent}%`;
+      this.appendChild(keyframe);
+
+      // Réappliquer les événements de drag
+      setupKeyframeDrag(keyframe);
+    });
+  });
+
+  function setupKeyframeDrag(keyframe) {
+    let isDragging = false;
+
+    keyframe.addEventListener('mousedown', function(e) {
+      isDragging = true;
+      this.style.cursor = 'grabbing';
+      e.preventDefault();
+      e.stopPropagation();
+    });
+
+    document.addEventListener('mousemove', function(e) {
+      if (isDragging) {
+        const track = keyframe.parentElement;
+        const rect = track.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const percent = Math.max(0, Math.min(100, (x / rect.width) * 100));
+        keyframe.style.left = `${percent}%`;
+      }
+    });
+
+    document.addEventListener('mouseup', function() {
+      if (isDragging) {
+        isDragging = false;
+        keyframe.style.cursor = 'pointer';
+      }
+    });
+  }
+
+  // Raccourcis clavier
+  document.addEventListener('keydown', function(e) {
+    // Espace pour play/pause
+    if (e.code === 'Space' && e.target.tagName !== 'INPUT') {
+      e.preventDefault();
+      if (isPlaying) {
+        pauseBtn.click();
+      } else {
+        playBtn.click();
+      }
+    }
+
+    // Ctrl+S pour sauvegarder
+    if (e.ctrlKey && e.key === 's') {
+      e.preventDefault();
+      console.log('Sauvegarde...');
+    }
+
+    // Delete pour supprimer l'élément sélectionné
+    if (e.key === 'Delete') {
+      console.log('Supprimer l\'élément sélectionné');
+    }
+  });
+
+  // Redimensionnement des panneaux
+  let isResizing = false;
+  let currentPanel = null;
+  let startWidth = 0;
+  let startX = 0;
+
+  // Ajouter des poignées de redimensionnement (simplifiées pour la démo)
+  document.addEventListener('mousedown', function(e) {
+    const leftPanel = document.querySelector('.left-panel');
+    const rightPanel = document.querySelector('.right-panel');
+
+    // Vérifier si on est sur le bord d'un panneau
+    const leftRect = leftPanel.getBoundingClientRect();
+    const rightRect = rightPanel.getBoundingClientRect();
+
+    if (Math.abs(e.clientX - leftRect.right) < 5) {
+      isResizing = true;
+      currentPanel = leftPanel;
+      startWidth = leftRect.width;
+      startX = e.clientX;
+      document.body.style.cursor = 'ew-resize';
+    } else if (Math.abs(e.clientX - rightRect.left) < 5) {
+      isResizing = true;
+      currentPanel = rightPanel;
+      startWidth = rightRect.width;
+      startX = e.clientX;
+      document.body.style.cursor = 'ew-resize';
+    }
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (isResizing && currentPanel) {
+      const delta = currentPanel.classList.contains('left-panel')
+              ? e.clientX - startX
+              : startX - e.clientX;
+      const newWidth = Math.max(200, Math.min(500, startWidth + delta));
+      currentPanel.style.width = `${newWidth}px`;
+
+      // Mettre à jour la grille
+      const container = document.querySelector('.app-container');
+      if (currentPanel.classList.contains('left-panel')) {
+        container.style.gridTemplateColumns = `${newWidth}px 1fr 300px`;
+      } else {
+        container.style.gridTemplateColumns = `250px 1fr ${newWidth}px`;
+      }
+    }
+  });
+
+  document.addEventListener('mouseup', function() {
+    if (isResizing) {
+      isResizing = false;
+      currentPanel = null;
+      document.body.style.cursor = '';
+    }
+  });
+
+  // Animation de démarrage
+  setTimeout(() => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Fond avec damier pour indiquer la transparence
+    const checkerSize = 10;
+    ctx.fillStyle = '#ccc';
+    for (let x = 0; x < canvas.width; x += checkerSize * 2) {
+      for (let y = 0; y < canvas.height; y += checkerSize * 2) {
+        ctx.fillRect(x, y, checkerSize, checkerSize);
+        ctx.fillRect(x + checkerSize, y + checkerSize, checkerSize, checkerSize);
+      }
+    }
+
+    // Message d'accueil
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillRect(canvas.width/2 - 200, canvas.height/2 - 50, 400, 100);
+    ctx.fillStyle = 'white';
+    ctx.font = '20px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Pixel Animation Editor', canvas.width/2, canvas.height/2 - 10);
+    ctx.font = '14px sans-serif';
+    ctx.fillText('Glissez-déposez des sprites pour commencer', canvas.width/2, canvas.height/2 + 20);
+  }, 100);
+</script>
+</body>
 </html>
+>
